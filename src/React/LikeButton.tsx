@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { getDbLazy } from '../firebaseLazy';
+import { getDbLazy, getFirebaseStatus } from '../firebaseLazy';
 import es from '../i18n/es';
 import en from '../i18n/en';
 
@@ -14,6 +14,7 @@ const LikeButton = () => {
   const [animateLikes, setAnimateLikes] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [permissionError, setPermissionError] = useState<string | null>(null);
+  const [initError, setInitError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [cooldownUntil, setCooldownUntil] = useState<number>(0);
   const [toggleCountWindow, setToggleCountWindow] = useState<{start:number; count:number}>({start: Date.now(), count:0});
@@ -93,7 +94,13 @@ const LikeButton = () => {
             }
             io.disconnect();
           } catch (e) {
-            // Silencioso
+            const status = getFirebaseStatus();
+            if (status.lastError && !permissionError) {
+              setInitError(status.lastError);
+            }
+            if (import.meta.env.PUBLIC_LIKES_DEBUG === '1') {
+              console.error('[LikeButton] Falló carga inicial:', status);
+            }
           }
         }
       }, { rootMargin: '100px' });
@@ -127,6 +134,25 @@ const LikeButton = () => {
     } else if (toggleCountWindow.count >= TOGGLE_WINDOW_MAX) {
       setFeedback(tGlobal.likes.rateLimited);
       return;
+    }
+    if ((!dbRef.current) && !permissionError) {
+      // Fallback: intentar inicializar en la interacción del usuario (por si IntersectionObserver no disparó o falló antes)
+      try {
+        const db = await getDbLazy();
+        if (db) {
+          dbRef.current = db;
+        } else {
+          const status = getFirebaseStatus();
+          if (status.lastError) setInitError(status.lastError);
+        }
+      } catch (e) {
+        const status = getFirebaseStatus();
+        if (status.lastError) setInitError(status.lastError);
+        if (import.meta.env.PUBLIC_LIKES_DEBUG === '1') {
+          // eslint-disable-next-line no-console
+          console.error('[LikeButton] Error inicializando Firestore en fallback:', status);
+        }
+      }
     }
     if (!dbRef.current || permissionError) {
       console.warn('Firestore no disponible o sin permisos. Acción ignorada.');
@@ -265,8 +291,10 @@ const LikeButton = () => {
           {t.likes.label(likes)}
         </span>
       </button>
-      {permissionError && (
-        <span className="ml-3 text-xs text-red-400 max-w-[12rem]">{permissionError}</span>
+      {(permissionError || initError) && (
+        <span className="ml-3 text-xs text-red-400 max-w-[14rem]">
+          {permissionError || initError}
+        </span>
       )}
       {!permissionError && feedback && (
         <span aria-live="polite" className="ml-3 text-xs text-green-400">{feedback}</span>
