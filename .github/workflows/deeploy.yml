@@ -2,7 +2,7 @@ name: Deploy Astro to GitHub Pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main ]   # <–– cámbialo si tu rama es otra
   workflow_dispatch:
 
 permissions:
@@ -23,9 +23,10 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
+      - uses: actions/configure-pages@v5     # <–– paso recomendado por GitHub
       - run: npm ci
       - run: npm run build
-      - run: touch dist/.nojekyll
+      - run: touch dist/.nojekyll            # evita bloqueo de /_astro
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
@@ -34,8 +35,11 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment:
-      name: github-pages
+      name: github-pages                     # opcional (puedes quitar este bloque si molesta el editor)
       url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
