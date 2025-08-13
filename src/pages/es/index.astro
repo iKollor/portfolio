@@ -1,0 +1,26 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Home from "../../components/home.astro";
+import Projects from "../../components/projects.astro";
+import Contact from "../../components/contact.astro";
+import { getDict } from "../../i18n";
+
+const lang: "es" = "es";
+const t = getDict(lang);
+---
+
+<Layout title="Isaí Tobar" lang={lang}>
+    <Home
+        intro={t.home.intro}
+        role={`${t.home.role}`}
+        subtitle={t.home.subtitle}
+        skillsTitle={t.skills.title}
+        skillCategories={[
+            { key: "web", label: t.skills.categories.web, items: ["Aplicaciones de una sola página (SPAs) y sitios web dinámicos", "Landing pages, sitios empresariales, Portafolios", "Aplicaciones web personalizadas con UI y animaciones hermosas usando GSAP"] },
+            { key: "mobile", label: t.skills.categories.mobile, items: ["Aplicaciones web adaptadas a móviles", "Aplicaciones móviles con React Native y Flutter"] },
+            { key: "uiux", label: t.skills.categories.uiux, items: ["Diseño UI con Figma & Adobe XD", "Investigación UX y mejoras", "Prototipado para sitios y apps móviles"] },
+        ]}
+    />
+    <Projects myWork={t.projects.myWork} projectsTitle={t.projects.title} moreLabel={t.projects.more} lang={lang} />
+    <Contact heading={t.contact.heading} title={t.contact.title} paragraph={t.contact.paragraph} location={t.contact.location} form={t.contact.form} />
+</Layout>

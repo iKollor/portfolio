@@ -1,0 +1,173 @@
+---
+const defaultLocale = "en";
+const locales: string[] = ["en", "es"];
+const BASE = import.meta.env.BASE_URL || "/";
+const path = Astro.url.pathname;
+// Detección robusta: base + es
+const esPrefix = (BASE.endsWith("/") ? BASE.slice(0, -1) : BASE) + "/es";
+const currentLang = path === esPrefix || path.startsWith(esPrefix + "/") ? "es" : "en";
+---
+
+<div class="lang-switcher relative" data-base={BASE}>
+    <button id="lang-trigger" type="button" class="inline-flex items-center gap-1 pl-6 pr-7 py-1.5 rounded-full bg-[#181818] border border-white/10 hover:border-[var(--sec)] focus-visible:outline-none focus:ring-2 focus:ring-white/20 shadow-sm text-xs md:text-sm font-medium text-white/80 transition-colors data-[open=true]:border-[var(--sec)]" aria-haspopup="listbox" aria-expanded="false" aria-label="Language selector" data-open="false">
+        <span class="absolute left-2 text-xs md:text-sm select-none" id="lang-flag" aria-hidden="true">{currentLang === "en" ? "🇺🇸" : "🇪🇸"}</span>
+        <span id="lang-label" class="tracking-wide">{currentLang.toUpperCase()}</span>
+        <svg data-caret class="absolute right-2 w-3.5 h-3.5 text-white/60 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>
+    </button>
+    <ul id="lang-list" tabindex="-1" role="listbox" aria-labelledby="lang-trigger" class="invisible opacity-0 pointer-events-none absolute z-50 mt-2 w-24 right-0 origin-top rounded-lg border border-white/10 bg-[#1e1e1e] backdrop-blur-sm shadow-lg ring-1 ring-black/30 focus:outline-none transition-all duration-150 data-[open=true]:opacity-100 data-[open=true]:visible data-[open=true]:pointer-events-auto data-[open=true]:scale-100 scale-95 overflow-hidden" data-open="false">
+        {
+            locales.map((l) => (
+                <li role="option" aria-selected={l === currentLang} data-value={l} class={`flex items-center gap-2 px-3 py-2 text-xs md:text-sm cursor-pointer select-none text-white/70 hover:text-white hover:bg-white/10 ${l === currentLang ? "bg-white/5 text-white" : ""}`}>
+                    <span class="text-base leading-none">{l === "en" ? "🇺🇸" : "🇪🇸"}</span>
+                    <span class="font-semibold tracking-wide">{l.toUpperCase()}</span>
+                    {l === currentLang && <span class="ml-auto text-[10px] text-[var(--sec)]">●</span>}
+                </li>
+            ))
+        }
+    </ul>
+</div>
+
+<script is:inline>
+    (function () {
+        const container = document.querySelector(".lang-switcher[data-base]");
+        const trigger = document.getElementById("lang-trigger");
+        const list = document.getElementById("lang-list");
+        const flagEl = document.getElementById("lang-flag");
+        const labelEl = document.getElementById("lang-label");
+        const BASE = container?.getAttribute("data-base") || "/";
+        const defaultLocale = "en";
+        if (!trigger || !list) return;
+
+        function normalizeBase(b) {
+            if (!b) return "/";
+            if (!b.startsWith("/")) return "/" + b;
+            return b.endsWith("/") ? b.slice(0, -1) : b;
+        }
+        const NBASE = normalizeBase(BASE);
+
+        function stripBase(pathname) {
+            return pathname.startsWith(NBASE + "/") ? pathname.slice(NBASE.length) : pathname === NBASE ? "/" : pathname;
+        }
+
+        function buildLocalizedPath(lang, relative) {
+            // relative siempre empieza con '/'
+            if (lang === defaultLocale) {
+                return (NBASE === "/" ? "" : NBASE) + (relative === "/" ? "/" : relative);
+            }
+            return (NBASE === "/" ? "" : NBASE) + "/es" + (relative === "/" ? "/" : relative);
+        }
+
+        function baseRelativeWithoutLocale() {
+            const { pathname } = window.location;
+            let rel = stripBase(pathname); // puede incluir /es
+            if (rel.startsWith("/es/")) rel = rel.slice(3);
+            else if (rel === "/es") rel = "/";
+            return rel;
+        }
+
+        function applyLanguage(lang) {
+            const rel = baseRelativeWithoutLocale();
+            const { search, hash } = window.location;
+            const target = buildLocalizedPath(lang, rel) + search + hash;
+            if (window.location.pathname + window.location.search + window.location.hash !== target) {
+                window.location.assign(target);
+            }
+        }
+
+        // Al cargar: si el usuario tiene preferencia y difiere de la ruta actual, redirigir una única vez.
+        const options = Array.from(list.querySelectorAll('[role="option"]'));
+        let open = false;
+        let activeIndex = options.findIndex((o) => o.getAttribute("aria-selected") === "true");
+
+        function setOpen(v, restoreFocus = true) {
+            open = v;
+            list.dataset.open = String(v);
+            trigger.setAttribute("aria-expanded", String(v));
+            trigger.setAttribute("data-open", String(v));
+            const caret = trigger.querySelector("[data-caret]");
+            if (caret) caret.style.transform = v ? "rotate(180deg)" : "rotate(0)";
+            if (v) {
+                list.focus();
+                activeIndex = options.findIndex((o) => o.getAttribute("aria-selected") === "true");
+                highlight(activeIndex);
+            } else if (restoreFocus) {
+                // Sólo devolver foco al trigger si el cierre proviene del propio componente (Esc, toggle), no por clic externo
+                trigger.focus();
+            }
+        }
+        function highlight(i) {
+            options.forEach((o, idx) => o.classList.toggle("bg-white/10", idx === i));
+        }
+        function select(i) {
+            const opt = options[i];
+            if (!opt) return;
+            const lang = opt.dataset.value;
+            options.forEach((o) => o.setAttribute("aria-selected", "false"));
+            opt.setAttribute("aria-selected", "true");
+            if (flagEl) flagEl.textContent = lang === "en" ? "🇺🇸" : "🇪🇸";
+            if (labelEl) labelEl.textContent = lang.toUpperCase();
+            localStorage.setItem("lang", lang);
+            applyLanguage(lang);
+        }
+
+        trigger.addEventListener("click", () => setOpen(!open));
+        trigger.addEventListener("keydown", (e) => {
+            if (["ArrowDown", "Enter", " "].includes(e.key)) {
+                e.preventDefault();
+                setOpen(true);
+            }
+        });
+        list.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") {
+                e.preventDefault();
+                setOpen(false); // cierre por Escape: sí devuelve foco
+                return;
+            }
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                activeIndex = (activeIndex + 1) % options.length;
+                highlight(activeIndex);
+            } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                activeIndex = (activeIndex - 1 + options.length) % options.length;
+                highlight(activeIndex);
+            } else if (e.key === "Enter") {
+                e.preventDefault();
+                select(activeIndex);
+            }
+        });
+        options.forEach((o, idx) => {
+            o.addEventListener("mouseenter", () => {
+                activeIndex = idx;
+                highlight(idx);
+            });
+            o.addEventListener("click", () => {
+                select(idx);
+                setOpen(false, false); // tras seleccionar y navegar no necesitamos devolver foco
+            });
+        });
+        document.addEventListener("click", (e) => {
+            if (!container.contains(e.target)) setOpen(false, false); // clic externo: no robar foco
+        });
+
+        const stored = localStorage.getItem("lang");
+        if (stored) {
+            const idx = options.findIndex((o) => o.dataset.value === stored);
+            if (idx >= 0 && options[idx].getAttribute("aria-selected") !== "true") {
+                select(idx);
+            }
+        }
+    })();
+</script>
+<style>
+    #lang-list[data-open="true"] {
+        pointer-events: auto;
+    }
+    #lang-list::-webkit-scrollbar {
+        width: 6px;
+    }
+    #lang-list::-webkit-scrollbar-thumb {
+        background: #333;
+        border-radius: 10px;
+    }
+</style>

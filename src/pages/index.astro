@@ -1,16 +1,26 @@
 ---
 import Layout from "@/layouts/Layout.astro";
-import Nav from "@/components/nav.astro";
 import Home from "@/components/home.astro";
 import Projects from "@/components/projects.astro";
 import Contact from "@/components/contact.astro";
-import Footer from "@/components/footer.astro";
+import { getDict } from "@/i18n";
+
+const lang: "en" = "en";
+const t = getDict(lang);
 ---
 
-<Layout title="Oscar Hernandez">
-  <Nav />
-  <Home />
-  <Projects />
-  <Contact />
-  <Footer />
+<Layout title="Isaí Tobar" lang={lang}>
+    <Home
+        intro={t.home.intro}
+        role={`${t.home.role}`}
+        subtitle={t.home.subtitle}
+        skillsTitle={t.skills.title}
+        skillCategories={[
+            { key: "web", label: t.skills.categories.web, items: ["Single Page Applications (SPAs) and dynamic websites", "Landing pages, business websites, Portfolio websites", "Custom web apps and pages with beautiful UI and animations using GSAP"] },
+            { key: "mobile", label: t.skills.categories.mobile, items: ["Mobile-friendly web apps", "React Native and Flutter mobile apps"] },
+            { key: "uiux", label: t.skills.categories.uiux, items: ["UI design with Figma & Adobe XD", "UX research & improvements", "Prototyping for websites & mobile apps"] },
+        ]}
+    />
+    <Projects myWork={t.projects.myWork} projectsTitle={t.projects.title} moreLabel={t.projects.more} lang={lang} />
+    <Contact heading={t.contact.heading} title={t.contact.title} paragraph={t.contact.paragraph} location={t.contact.location} form={t.contact.form} />
 </Layout>
