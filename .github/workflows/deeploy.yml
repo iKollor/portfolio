@@ -24,6 +24,23 @@ jobs:
           node-version: 20
           cache: 'npm'
       - uses: actions/configure-pages@v5     # <–– paso recomendado por GitHub
+      - name: Load public env vars (multiline secret)
+        run: |
+          # Crea un secret en GitHub llamado PUBLIC_ENV_VARS con el contenido de tus variables PUBLIC_*
+          # Ejemplo del contenido del secret:
+          # PUBLIC_FIREBASE_API_KEY=xxx
+          # PUBLIC_FIREBASE_AUTH_DOMAIN=xxx.firebaseapp.com
+          # PUBLIC_FIREBASE_PROJECT_ID=xxx
+          # PUBLIC_FIREBASE_STORAGE_BUCKET=xxx.appspot.com
+          # PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
+          # PUBLIC_FIREBASE_APP_ID=1:123:web:abc
+          # PUBLIC_FIREBASE_APPCHECK_KEY=tu_site_key
+          # PUBLIC_WEB3FORMS_ACCESS_KEY=xxxxx
+          # PUBLIC_LIKES_ENABLED=1
+          # PUBLIC_LIKES_REALTIME=1
+          # PUBLIC_LIKES_DEBUG=0
+          echo "${{ secrets.PUBLIC_ENV_VARS }}" >> $GITHUB_ENV
+          echo "Variables PUBLIC_* cargadas:" && grep '^PUBLIC_' $GITHUB_ENV || true
       - run: npm ci
       - run: npm run build
       - run: touch dist/.nojekyll            # evita bloqueo de /_astro
