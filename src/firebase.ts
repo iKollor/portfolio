@@ -1,8 +1,9 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 
+// Todas las variables deben tener prefijo PUBLIC_ para estar disponibles en el cliente (Astro)
 const firebaseConfig = {
-  apiKey: import.meta.env.FIREBASE_API_KEY,
+  apiKey: import.meta.env.PUBLIC_FIREBASE_API_KEY,
   authDomain: import.meta.env.PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: import.meta.env.PUBLIC_FIREBASE_STORAGE_BUCKET,
@@ -10,5 +11,19 @@ const firebaseConfig = {
   appId: import.meta.env.PUBLIC_FIREBASE_APP_ID,
 };
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+function isConfigValid(cfg: Record<string, any>): cfg is Required<typeof firebaseConfig> {
+  return Object.values(cfg).every(v => typeof v === 'string' && v.trim() !== '');
+}
+
+let dbExport: ReturnType<typeof getFirestore> | undefined;
+if (isConfigValid(firebaseConfig)) {
+  const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+  dbExport = getFirestore(app);
+} else {
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.warn('[firebase] Config incompleta. Firestore deshabilitado en cliente.');
+  }
+}
+
+export const db = dbExport;
