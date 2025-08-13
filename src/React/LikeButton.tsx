@@ -24,8 +24,74 @@ const LikeButton = () => {
   const TOGGLE_WINDOW_MS = 60000; // ventana de 60s para contar toggles
   const TOGGLE_WINDOW_MAX = 10; // máximo toggles (like/unlike) por minuto
 
-  const observerRef = useRef<HTMLDivElement | null>(null);
   const dbRef = useRef<any>(null);
+  const unsubRef = useRef<null | (() => void)>(null);
+
+  // Helpers simplificados
+  const ensureDb = async () => {
+    if (dbRef.current) return true;
+    try {
+      const db = await getDbLazy();
+      if (!db) {
+        const status = getFirebaseStatus();
+        if (status.lastError) setInitError(status.lastError);
+        return false;
+      }
+      dbRef.current = db;
+      return true;
+    } catch (_) {
+      const status = getFirebaseStatus();
+      if (status.lastError) setInitError(status.lastError);
+      return false;
+    }
+  };
+
+  const initLikes = async () => {
+    if (!enabled || permissionError) return;
+    const ok = await ensureDb();
+    if (!ok) return;
+    try {
+      const { doc, onSnapshot, getDoc } = await import('firebase/firestore');
+      const likeDocRef = doc(dbRef.current, 'likes', 'counter');
+      if (realtime) {
+        // Suscripción en tiempo real
+        unsubRef.current = onSnapshot(
+          likeDocRef,
+          (docSnap) => {
+            if (docSnap.exists()) {
+              const currentLikes = docSnap.data().likes;
+              setLikes(Math.max(0, currentLikes));
+              localStorage.setItem('websiteLikesCache', String(currentLikes));
+              setAnimateLikes(true);
+              setTimeout(() => setAnimateLikes(false), 300);
+            }
+          },
+          (error) => {
+            if ((error as any)?.code === 'permission-denied') {
+              setPermissionError(tGlobal.likes.noPermission);
+            } else {
+              setPermissionError(tGlobal.likes.loadError);
+            }
+          }
+        );
+      } else {
+        // Lectura única para mostrar el número real sin interacción
+        const docSnap = await getDoc(likeDocRef);
+        if (docSnap.exists()) {
+          const currentLikes = docSnap.data().likes;
+          setLikes(Math.max(0, currentLikes));
+          localStorage.setItem('websiteLikesCache', String(currentLikes));
+        }
+      }
+    } catch (e) {
+      const status = getFirebaseStatus();
+      if (status.lastError && !permissionError) setInitError(status.lastError);
+      if (import.meta.env.PUBLIC_LIKES_DEBUG === '1') {
+        // eslint-disable-next-line no-console
+        console.warn('[LikeButton] initLikes fallido:', status);
+      }
+    }
+  };
 
   useEffect(() => {
     const isEsLocale = typeof window !== 'undefined' && window.location.pathname.startsWith('/es');
@@ -45,73 +111,21 @@ const LikeButton = () => {
       setLikes(Math.max(0, Number(cachedLikes)));
     }
 
-    // Lazy load Firestore only when button enters viewport
-    if (observerRef.current) {
-      const io = new IntersectionObserver(async (entries) => {
-        const entry = entries[0];
-        if (entry.isIntersecting && !dbRef.current) {
-          try {
-            const db = await getDbLazy();
-            if (!db) return;
-            dbRef.current = db;
-            const { doc, onSnapshot, getDoc } = await import('firebase/firestore');
-            const likeDocRef = doc(db, 'likes', 'counter');
-            if (realtime) {
-              const unsubscribe = onSnapshot(
-                likeDocRef,
-                (docSnap) => {
-                  if (docSnap.exists()) {
-                    const currentLikes = docSnap.data().likes;
-                    setLikes(Math.max(0, currentLikes));
-                    localStorage.setItem('websiteLikesCache', String(currentLikes));
-                    setAnimateLikes(true);
-                    setTimeout(() => setAnimateLikes(false), 300);
-                  }
-                },
-                (error) => {
-                  if ((error as any)?.code === 'permission-denied') {
-                    setPermissionError(tGlobal.likes.noPermission);
-                  } else {
-                    setPermissionError(tGlobal.likes.loadError);
-                  }
-                }
-              );
-              // Guardar para cleanup
-              (observerRef.current as any)._unsub = unsubscribe;
-            } else {
-              getDoc(likeDocRef).then(docSnap => {
-                if (docSnap.exists()) {
-                  const currentLikes = docSnap.data().likes;
-                  setLikes(Math.max(0, currentLikes));
-                  localStorage.setItem('websiteLikesCache', String(currentLikes));
-                }
-              }).catch(error => {
-                const code = (error as any)?.code;
-                if (code === 'permission-denied') {
-                  setPermissionError(tGlobal.likes.noPermission);
-                }
-              });
-            }
-            io.disconnect();
-          } catch (e) {
-            const status = getFirebaseStatus();
-            if (status.lastError && !permissionError) {
-              setInitError(status.lastError);
-            }
-            if (import.meta.env.PUBLIC_LIKES_DEBUG === '1') {
-              console.error('[LikeButton] Falló carga inicial:', status);
-            }
-          }
-        }
-      }, { rootMargin: '100px' });
-      io.observe(observerRef.current);
-      return () => {
-        io.disconnect();
-        const unsub = (observerRef.current as any)?._unsub;
-        if (typeof unsub === 'function') unsub();
-      };
+    // Inicialización ligera en idle o ASAP
+    const schedule = () => initLikes();
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      // @ts-ignore
+      requestIdleCallback(schedule, { timeout: 1500 });
+    } else {
+      setTimeout(schedule, 0);
     }
-    return () => {};
+
+    return () => {
+      if (unsubRef.current) {
+        try { unsubRef.current(); } catch {}
+        unsubRef.current = null;
+      }
+    };
   }, []);
 
   const triggerLikeAnimation = () => {
@@ -250,7 +264,7 @@ const LikeButton = () => {
   const t = tGlobal; // alias local
 
   return (
-  <div className="flex items-center" ref={observerRef}>
+  <div className="flex items-center">
       <button
         onClick={handleLike}
         aria-label={t.likes.aria(likes, isLiked)}
