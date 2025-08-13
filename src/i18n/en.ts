@@ -43,4 +43,18 @@ export default {
         title: "Projects",
         more: "More projects on",
     },
+    likes: {
+        label: (count: number) => `${count} Like${count === 1 ? '' : 's'}`,
+        aria: (count: number, liked: boolean) => {
+            const base = `${count} Like${count === 1 ? '' : 's'}`;
+            return liked
+                ? `${base}. You liked this. Press to remove your like.`
+                : `${base}. Press to like.`;
+        },
+        thanks: 'Thanks for your like!',
+        wait: 'Please wait a moment...',
+        rateLimited: 'You are interacting too fast. Try later.',
+        noPermission: 'No permission to update likes.',
+        loadError: 'Error loading likes.',
+    },
 };

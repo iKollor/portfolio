@@ -1,9 +1,13 @@
-import { useState, useEffect } from "react";
-import { doc, onSnapshot, updateDoc, increment, getDoc, setDoc } from "firebase/firestore";
-import { db } from "../firebase";
+import { useState, useEffect, useRef } from "react";
+import { getDbLazy } from '../firebaseLazy';
+import es from '../i18n/es';
+import en from '../i18n/en';
 
 const LikeButton = () => {
+  const enabled = import.meta.env.PUBLIC_LIKES_ENABLED !== '0';
+  const realtime = import.meta.env.PUBLIC_LIKES_REALTIME !== '0';
   const [likes, setLikes] = useState(0);
+  const [tGlobal, setTGlobal] = useState(en);
   const [isLiked, setIsLiked] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [triggerAnimation, setTriggerAnimation] = useState(false);
@@ -11,36 +15,94 @@ const LikeButton = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [cooldownUntil, setCooldownUntil] = useState<number>(0);
+  const [toggleCountWindow, setToggleCountWindow] = useState<{start:number; count:number}>({start: Date.now(), count:0});
+
+  // Configuración de mitigación ligera
+  const COOLDOWN_MS = 1200; // tiempo mínimo entre toggles
+  const TOGGLE_WINDOW_MS = 60000; // ventana de 60s para contar toggles
+  const TOGGLE_WINDOW_MAX = 10; // máximo toggles (like/unlike) por minuto
+
+  const observerRef = useRef<HTMLDivElement | null>(null);
+  const dbRef = useRef<any>(null);
 
   useEffect(() => {
+    const isEsLocale = typeof window !== 'undefined' && window.location.pathname.startsWith('/es');
+    setTGlobal(isEsLocale ? es : en);
     setIsClient(true);
+
+    if (!enabled) return; // feature flag off
 
     const storedIsLiked = localStorage.getItem("websiteIsLiked");
     if (storedIsLiked) {
       setIsLiked(storedIsLiked === "true");
     }
 
-    if (db) {
-      const likeDocRef = doc(db, "likes", "counter");
-      const unsubscribe = onSnapshot(
-        likeDocRef,
-        (docSnap) => {
-          if (docSnap.exists()) {
-            const currentLikes = docSnap.data().likes;
-            setLikes(Math.max(0, currentLikes));
-            setAnimateLikes(true);
-            setTimeout(() => setAnimateLikes(false), 300);
-          }
-        },
-        (error) => {
-          if ((error as any)?.code === 'permission-denied') {
-            setPermissionError('No tienes permisos para ver/actualizar los likes.');
-          } else {
-            setPermissionError('Error cargando likes.');
+    // Cache local de likes para primera pintura rápida (opcional)
+    const cachedLikes = localStorage.getItem('websiteLikesCache');
+    if (cachedLikes && !isNaN(Number(cachedLikes))) {
+      setLikes(Math.max(0, Number(cachedLikes)));
+    }
+
+    // Lazy load Firestore only when button enters viewport
+    if (observerRef.current) {
+      const io = new IntersectionObserver(async (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && !dbRef.current) {
+          try {
+            const db = await getDbLazy();
+            if (!db) return;
+            dbRef.current = db;
+            const { doc, onSnapshot, getDoc } = await import('firebase/firestore');
+            const likeDocRef = doc(db, 'likes', 'counter');
+            if (realtime) {
+              const unsubscribe = onSnapshot(
+                likeDocRef,
+                (docSnap) => {
+                  if (docSnap.exists()) {
+                    const currentLikes = docSnap.data().likes;
+                    setLikes(Math.max(0, currentLikes));
+                    localStorage.setItem('websiteLikesCache', String(currentLikes));
+                    setAnimateLikes(true);
+                    setTimeout(() => setAnimateLikes(false), 300);
+                  }
+                },
+                (error) => {
+                  if ((error as any)?.code === 'permission-denied') {
+                    setPermissionError(tGlobal.likes.noPermission);
+                  } else {
+                    setPermissionError(tGlobal.likes.loadError);
+                  }
+                }
+              );
+              // Guardar para cleanup
+              (observerRef.current as any)._unsub = unsubscribe;
+            } else {
+              getDoc(likeDocRef).then(docSnap => {
+                if (docSnap.exists()) {
+                  const currentLikes = docSnap.data().likes;
+                  setLikes(Math.max(0, currentLikes));
+                  localStorage.setItem('websiteLikesCache', String(currentLikes));
+                }
+              }).catch(error => {
+                const code = (error as any)?.code;
+                if (code === 'permission-denied') {
+                  setPermissionError(tGlobal.likes.noPermission);
+                }
+              });
+            }
+            io.disconnect();
+          } catch (e) {
+            // Silencioso
           }
         }
-      );
-      return () => unsubscribe();
+      }, { rootMargin: '100px' });
+      io.observe(observerRef.current);
+      return () => {
+        io.disconnect();
+        const unsub = (observerRef.current as any)?._unsub;
+        if (typeof unsub === 'function') unsub();
+      };
     }
     return () => {};
   }, []);
@@ -53,41 +115,92 @@ const LikeButton = () => {
   };
 
   const handleLike = async () => {
+    const now = Date.now();
     if (isProcessing) return;
-    if (!db || permissionError) {
+    if (now < cooldownUntil) {
+      setFeedback(tGlobal.likes.wait);
+      return;
+    }
+    // Rate limit ventana
+    if (now - toggleCountWindow.start > TOGGLE_WINDOW_MS) {
+      setToggleCountWindow({start: now, count:0});
+    } else if (toggleCountWindow.count >= TOGGLE_WINDOW_MAX) {
+      setFeedback(tGlobal.likes.rateLimited);
+      return;
+    }
+    if (!dbRef.current || permissionError) {
       console.warn('Firestore no disponible o sin permisos. Acción ignorada.');
       return;
     }
 
+    // Actualización optimista
+    const optimisticPrevLiked = isLiked;
+    const optimisticPrevLikes = likes;
+    const newLiked = !optimisticPrevLiked;
+    const newLikes = Math.max(0, optimisticPrevLikes + (newLiked ? 1 : -1));
+    setIsLiked(newLiked);
+    setLikes(newLikes);
+    if (newLiked) {
+      localStorage.setItem('websiteIsLiked', 'true');
+      setFeedback(tGlobal.likes.thanks);
+      setTimeout(() => setFeedback(prev => prev === tGlobal.likes.thanks ? null : prev), 4000);
+    } else {
+      localStorage.removeItem('websiteIsLiked');
+      setFeedback(null);
+    }
+    triggerLikeAnimation();
+
     try {
       setIsProcessing(true);
-      const likeDocRef = doc(db, "likes", "counter");
-      const snap = await getDoc(likeDocRef);
-      if (!snap.exists()) {
-        try { await setDoc(likeDocRef, { likes: 0 }, { merge: true }); } catch {}
-      }
-
-      if (!isLiked) {
-        // Dar like
-        await updateDoc(likeDocRef, { likes: increment(1) });
-        setIsLiked(true);
-        localStorage.setItem('websiteIsLiked', 'true');
-        setFeedback('¡Gracias por tu like!');
-        setTimeout(() => setFeedback(null), 4000);
-      } else {
-        // Quitar like (evitar bajar de 0 en UI)
-        if (likes > 0) {
-          await updateDoc(likeDocRef, { likes: increment(-1) });
+      // Punto D: usar una transacción para asegurar consistencia bajo concurrencia
+      const { doc, runTransaction } = await import('firebase/firestore');
+      const delta = newLiked ? 1 : -1;
+      const finalLikes = await runTransaction(dbRef.current, async (tx) => {
+        const likeDocRef = doc(dbRef.current, 'likes', 'counter');
+        const snap = await tx.get(likeDocRef);
+        let current = 0;
+        if (snap.exists()) {
+          const raw = snap.data().likes;
+          current = (typeof raw === 'number' && !isNaN(raw)) ? raw : 0;
         }
-        setIsLiked(false);
-        localStorage.removeItem('websiteIsLiked');
-        setFeedback(null);
+        let updated = current + delta;
+        if (updated < 0) {
+          // Evitar valores negativos; revertimos el toggle si se intentó decrementar por debajo de 0.
+          updated = current;
+        }
+        if (!snap.exists()) {
+          tx.set(likeDocRef, { likes: updated });
+        } else {
+          tx.update(likeDocRef, { likes: updated });
+        }
+        return updated;
+      });
+      // Si el resultado real difiere del optimista (debido a corrección de underflow u otra carrera), sincronizar.
+      if (finalLikes !== newLikes) {
+        setLikes(finalLikes);
+        // Si hubo underflow evitado y el usuario quiso hacer unlike en 0, garantizamos estado coherente.
+        if (finalLikes === optimisticPrevLikes && newLiked === false && optimisticPrevLiked === true && finalLikes === 0) {
+          setIsLiked(false);
+        }
       }
-      triggerLikeAnimation();
+      // éxito: registrar toggle
+      setToggleCountWindow(prev => ({
+        start: (now - prev.start > TOGGLE_WINDOW_MS) ? now : prev.start,
+        count: (now - prev.start > TOGGLE_WINDOW_MS) ? 1 : prev.count + 1
+      }));
+      setCooldownUntil(now + COOLDOWN_MS);
     } catch (error) {
+      // rollback
+      setIsLiked(optimisticPrevLiked);
+      setLikes(optimisticPrevLikes);
+      if (optimisticPrevLiked) {
+        localStorage.setItem('websiteIsLiked', 'true');
+      } else {
+        localStorage.removeItem('websiteIsLiked');
+      }
       const code = (error as any)?.code;
       if (code === 'permission-denied') {
-        setPermissionError('No tienes permisos para actualizar los likes.');
+        setPermissionError(tGlobal.likes.noPermission);
       }
       console.error('Error updating likes:', error);
     } finally {
@@ -95,7 +208,7 @@ const LikeButton = () => {
     }
   };
 
-  if (!isClient) return null;
+  if (!isClient || !enabled) return null;
 
   const borderColorClass = isLiked
     ? "border-[var(--sec)]"
@@ -107,11 +220,15 @@ const LikeButton = () => {
     ${triggerAnimation ? " animate-scale" : ""}
   `;
 
+  // Selección de traducciones (simple heurística basado en URL)
+  const t = tGlobal; // alias local
+
   return (
-    <div className="flex items-center">
+  <div className="flex items-center" ref={observerRef}>
       <button
         onClick={handleLike}
-        disabled={isProcessing || !!permissionError}
+        aria-label={t.likes.aria(likes, isLiked)}
+        disabled={isProcessing || !!permissionError || Date.now() < cooldownUntil}
         className={`hover:scale-105
           group relative w-40 h-10 flex items-center justify-center p-3
           rounded-full transition-all duration-300 ease-in-out transform border-2 ${borderColorClass}
@@ -124,7 +241,7 @@ const LikeButton = () => {
           viewBox="0 0 16 16"
           className={svgClasses}
           role="img"
-          aria-label={isLiked ? 'Liked' : 'Not liked'}
+          aria-hidden="true"
         >
           {isLiked ? (
             <path
@@ -145,7 +262,7 @@ const LikeButton = () => {
           text-[var(--white)]
         `}
         >
-          {likes} Likes
+          {t.likes.label(likes)}
         </span>
       </button>
       {permissionError && (

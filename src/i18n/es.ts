@@ -43,4 +43,18 @@ export default {
         title: "Proyectos",
         more: "Más proyectos en",
     },
+    likes: {
+        label: (count: number) => `${count} Me gusta`,
+        aria: (count: number, liked: boolean) => {
+            const base = `${count} Me gusta`;
+            return liked
+                ? `${base}. Ya diste like. Pulsa para quitar.`
+                : `${base}. Pulsa para dar like.`;
+        },
+        thanks: '¡Gracias por tu like!',
+        wait: 'Espera un momento...',
+        rateLimited: 'Has interactuado demasiado rápido. Intenta más tarde.',
+        noPermission: 'No tienes permisos para actualizar los likes.',
+        loadError: 'Error cargando likes.',
+    },
 };
