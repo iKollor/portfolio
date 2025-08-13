@@ -1,5 +1,6 @@
 ---
 import LikeButton from "../React/LikeButton.tsx";
+import { currentYear, site } from "../config/site";
 interface Props {
     rights?: string;
     builtWith?: string;
@@ -87,7 +88,7 @@ const BASE = import.meta.env.BASE_URL || "/";
         <div class="mt-12 pt-8 border-t border-[#ffffff10]">
             <p class="text-center text-sm text-[var(--white-icon)] space-y-2">
                 <!-- If you are using this template, by MIT License you can't remove the copyright notice -->
-                <span class="block sm:inline">Copyright © 2025 <a href="https://allmylinks.com/definitelynotisai" target="_blank" class="hover:text-white">Isaí Tobar</a>. {rights}</span>
+                <span class="block sm:inline">Copyright © {currentYear} <a href="https://allmylinks.com/definitelynotisai" target="_blank" class="hover:text-white">{site.name}</a>. {rights}</span>
             </p>
         </div>
     </div>

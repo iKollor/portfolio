@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://ikollor.github.io/portfolio/sitemap-index.xml

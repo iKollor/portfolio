@@ -1,0 +1,27 @@
+{
+    "name": "Isaí Tobar Portfolio",
+    "short_name": "Isaí",
+    "start_url": "/portfolio/",
+    "scope": "/portfolio/",
+    "display": "standalone",
+    "background_color": "#101010",
+    "theme_color": "#101010",
+    "description": "Software Developer crafting interactive and performant web experiences.",
+    "icons": [
+        {
+            "src": "/portfolio/favicon.png",
+            "sizes": "32x32",
+            "type": "image/png"
+        },
+        {
+            "src": "/portfolio/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/portfolio/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

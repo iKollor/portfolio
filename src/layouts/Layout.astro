@@ -2,6 +2,7 @@
 import Nav from "../components/nav.astro";
 import Footer from "../components/footer.astro";
 import { getDict } from "../i18n";
+import { site } from "../config/site";
 
 interface Props {
     title: string;
@@ -16,17 +17,47 @@ const t = getDict(lang as "en" | "es");
 <html lang={lang}>
     <head>
         <meta charset="UTF-8" />
-        <meta name="description" content="Software Developer" />
+    <meta name="description" content={site.description} />
+    <meta name="keywords" content={site.keywords?.join(', ')} />
+    <meta name="robots" content="index,follow" />
+    <meta name="theme-color" content="#101010" />
+    <meta name="color-scheme" content="dark light" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link rel="icon" type="image/png" href="/favicon.png" />
-        <meta property="og:title" content="Oscar Hernandez" />
-        <meta property="og:description" content="Software Developer" />
-        <meta property="og:image" content="https://oscarhernandez.vercel.app/og.image.png" />
-        <meta property="og:url" content="https://oscarhernandez.vercel.app" />
-        <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Oscar Hernandez Portfolio" />
+        <link rel="icon" type="image/png" href={import.meta.env.BASE_URL + 'favicon.png'} />
+        <link rel="icon" type="image/svg+xml" href={import.meta.env.BASE_URL + 'favicon.svg'} />
+        <link rel="apple-touch-icon" sizes="180x180" href={import.meta.env.BASE_URL + 'favicon.png'} />
+        <link rel="mask-icon" href={import.meta.env.BASE_URL + 'favicon.svg'} color="#a476ff" />
+        <meta property="og:title" content={site.name} />
+        <meta property="og:description" content={site.tagline} />
+        <meta property="og:image" content={site.ogImage.startsWith("http") ? site.ogImage : import.meta.env.BASE_URL + site.ogImage.replace(/^\//, "")} />
+        <meta property="og:url" content={site.url} />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content={lang === 'es' ? 'es_ES' : 'en_US'} />
+    <meta property="og:updated_time" content={new Date().toISOString()} />
+        <meta property="og:site_name" content={`${site.name} Portfolio`} />
+    <link rel="canonical" href={site.url} />
+    <link rel="alternate" hreflang="en" href={site.url} />
+    <link rel="alternate" hreflang="es" href={site.url + 'es/'} />
+    <link rel="alternate" hreflang="x-default" href={site.url} />
+    <link rel="manifest" href={import.meta.env.BASE_URL + 'site.webmanifest'} />
 
         <title>{title}</title>
+        <script type="application/ld+json" is:inline>{JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'Person',
+            name: site.name,
+            description: site.description,
+            url: site.url,
+            email: site.author?.email,
+            sameAs: [site.social?.github, site.social?.behance].filter(Boolean)
+        })}</script>
+        <script type="application/ld+json" is:inline>{JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'WebSite',
+            name: site.name + ' Portfolio',
+            url: site.url,
+            inLanguage: lang
+        })}</script>
     </head>
     <body class="bg-[--background] sm:px-28 lg:px-20 px-9">
         <Nav lang={lang} labels={t.nav} />

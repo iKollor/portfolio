@@ -1,5 +1,6 @@
 // @ts-check
 import { defineConfig } from "astro/config";
+import sitemap from "@astrojs/sitemap";
 import tailwind from "@astrojs/tailwind";
 
 import react from "@astrojs/react";
@@ -8,7 +9,7 @@ import react from "@astrojs/react";
 export default defineConfig({
     site: "https://ikollor.github.io",
     base: "/portfolio/",
-    integrations: [tailwind(), react()],
+    integrations: [tailwind(), react(), sitemap()],
     vite: {
         resolve: {
             alias: {
