@@ -6,9 +6,8 @@ import react from "@astrojs/react";
 
 // https://astro.build/config
 export default defineConfig({
-    // TODO: Ajusta "site" (y opcionalmente "base") según si es User Page o Project Page en GitHub Pages
-    // site: "https://TU_USUARIO.github.io",
-    // base: "/NOMBRE-DEL-REPO/",
+    site: "https://ikollor.github.io",
+    base: "/portfolio/",
     integrations: [tailwind(), react()],
     vite: {
         resolve: {
@@ -33,4 +32,5 @@ export default defineConfig({
             prefixDefaultLocale: false,
         },
     },
+    trailingSlash: "always",
 });

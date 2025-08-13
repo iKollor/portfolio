@@ -5,7 +5,7 @@ interface NavItem {
     icon: string;
 }
 
-const { lang = "en", labels = { home: "Home", projects: "Projects", contact: "Contact" } } = Astro.props as { lang: "en" | "es"; labels: { home: string; projects: string; contact: string } };
+const { labels = { home: "Home", projects: "Projects", contact: "Contact" } } = Astro.props as { labels: { home: string; projects: string; contact: string } };
 
 function localizedHash(id: string) {
     // Mantiene hash en la misma página; estructura actual es single-page
@@ -50,7 +50,7 @@ import LanguageSwitcher from "./LanguageSwitcher.astro";
                         </li>
                     ))
                 }
-                <li class="hidden md:flex items-center pl-4"><LanguageSwitcher client:load /></li>
+                <li class="hidden md:flex items-center pl-4"><LanguageSwitcher /></li>
             </ul>
         </div>
     </nav>

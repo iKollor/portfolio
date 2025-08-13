@@ -7,6 +7,7 @@ interface Props {
     deployedOn?: string;
 }
 const { rights = "All rights reserved.", builtWith = "Built with", styledWith = "Styled with", deployedOn = "Deployed on" } = Astro.props as Props;
+const BASE = import.meta.env.BASE_URL || "/";
 ---
 
 <footer class="w-full py-12 border-t border-[#ffffff10]">
@@ -50,19 +51,19 @@ const { rights = "All rights reserved.", builtWith = "Built with", styledWith = 
                             {
                                 desc: builtWith,
                                 name: "Astro",
-                                icon: "/svg/astro.svg",
+                                icon: `${BASE}svg/astro.svg`,
                                 alt: "Astro Logo",
                             },
                             {
                                 desc: styledWith,
                                 name: "TailwindCSS",
-                                icon: "/svg/tailwindcss.svg",
+                                icon: `${BASE}svg/tailwindcss.svg`,
                                 alt: "TailwindCSS Logo",
                             },
                             {
                                 desc: deployedOn,
                                 name: "GitHub Pages",
-                                icon: "/svg/github.svg",
+                                icon: `${BASE}svg/github.svg`,
                                 alt: "GitHub Pages Logo",
                             },
                         ].map((tech) => (

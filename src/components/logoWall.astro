@@ -1,5 +1,6 @@
 ---
 const technologies = ["astro", "react", "typeScript", "tailwindcss", "next", "nodejs", "HTML5", "CSS3", "javaScript", "git", "mysql", "bash", "andMore"];
+const BASE = import.meta.env.BASE_URL || "/";
 ---
 
 <div class="relative overflow-x-hidden py-8">
@@ -15,7 +16,7 @@ const technologies = ["astro", "react", "typeScript", "tailwindcss", "next", "no
                     </div>
                 ) : (
                     <div class="flex items-center gap-2 group transition-all duration-300">
-                        <img src={`/svg/${tech}.svg`} alt={tech} class="h-7 w-auto object-contain transition-transform group-hover:scale-110 opacity-60" width="30" height="30" loading="lazy" />
+                        <img src={`${BASE}svg/${tech}.svg`} alt={tech} class="h-7 w-auto object-contain transition-transform group-hover:scale-110 opacity-60" width="30" height="30" loading="lazy" />
                         <span class="text-lg font-medium text-[var(--white-icon)]">{tech.charAt(0).toUpperCase() + tech.slice(1)}</span>
                     </div>
                 )

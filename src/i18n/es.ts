@@ -16,7 +16,7 @@ export default {
         deployedOn: "Desplegado en",
     },
     skills: {
-        title: "¿Qué hago?",
+        title: "Lo que hago 👌",
         list: ["JavaScript", "TypeScript", "Astro", "React"],
         categories: {
             web: "Desarrollo Web",
