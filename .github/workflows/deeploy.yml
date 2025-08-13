@@ -17,6 +17,19 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Puedes definirlos como Secrets (recommended) o Repository Variables (vars). Claves Firebase públicas pueden ir en vars.
+      PUBLIC_FIREBASE_API_KEY: ${{ secrets.PUBLIC_FIREBASE_API_KEY || vars.PUBLIC_FIREBASE_API_KEY }}
+      PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.PUBLIC_FIREBASE_AUTH_DOMAIN || vars.PUBLIC_FIREBASE_AUTH_DOMAIN }}
+      PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.PUBLIC_FIREBASE_PROJECT_ID || vars.PUBLIC_FIREBASE_PROJECT_ID }}
+      PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.PUBLIC_FIREBASE_STORAGE_BUCKET || vars.PUBLIC_FIREBASE_STORAGE_BUCKET }}
+      PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.PUBLIC_FIREBASE_MESSAGING_SENDER_ID || vars.PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+      PUBLIC_FIREBASE_APP_ID: ${{ secrets.PUBLIC_FIREBASE_APP_ID || vars.PUBLIC_FIREBASE_APP_ID }}
+      PUBLIC_FIREBASE_APPCHECK_KEY: ${{ secrets.PUBLIC_FIREBASE_APPCHECK_KEY || vars.PUBLIC_FIREBASE_APPCHECK_KEY }}
+      PUBLIC_WEB3FORMS_ACCESS_KEY: ${{ secrets.PUBLIC_WEB3FORMS_ACCESS_KEY || vars.PUBLIC_WEB3FORMS_ACCESS_KEY }}
+      PUBLIC_LIKES_ENABLED: ${{ secrets.PUBLIC_LIKES_ENABLED || vars.PUBLIC_LIKES_ENABLED || '1' }}
+      PUBLIC_LIKES_REALTIME: ${{ secrets.PUBLIC_LIKES_REALTIME || vars.PUBLIC_LIKES_REALTIME || '1' }}
+      PUBLIC_LIKES_DEBUG: ${{ secrets.PUBLIC_LIKES_DEBUG || vars.PUBLIC_LIKES_DEBUG || '0' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,25 +37,10 @@ jobs:
           node-version: 20
           cache: 'npm'
       - uses: actions/configure-pages@v5     # <–– paso recomendado por GitHub
-      - name: Load public env vars (multiline secret)
-        run: |
-          # Crea un secret en GitHub llamado PUBLIC_ENV_VARS con el contenido de tus variables PUBLIC_*
-          # Ejemplo del contenido del secret:
-          # PUBLIC_FIREBASE_API_KEY=xxx
-          # PUBLIC_FIREBASE_AUTH_DOMAIN=xxx.firebaseapp.com
-          # PUBLIC_FIREBASE_PROJECT_ID=xxx
-          # PUBLIC_FIREBASE_STORAGE_BUCKET=xxx.appspot.com
-          # PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
-          # PUBLIC_FIREBASE_APP_ID=1:123:web:abc
-          # PUBLIC_FIREBASE_APPCHECK_KEY=tu_site_key
-          # PUBLIC_WEB3FORMS_ACCESS_KEY=xxxxx
-          # PUBLIC_LIKES_ENABLED=1
-          # PUBLIC_LIKES_REALTIME=1
-          # PUBLIC_LIKES_DEBUG=0
-          echo "${{ secrets.PUBLIC_ENV_VARS }}" >> $GITHUB_ENV
-          echo "Variables PUBLIC_* cargadas:" && grep '^PUBLIC_' $GITHUB_ENV || true
       - name: Validate public env vars
         run: |
+          echo "Mostrando variables PUBLIC_* detectadas:" 
+          env | grep '^PUBLIC_' || true
           REQUIRED=( \
             PUBLIC_FIREBASE_API_KEY \
             PUBLIC_FIREBASE_AUTH_DOMAIN \
@@ -54,20 +52,14 @@ jobs:
           )
           MISSING=0
           for v in "${REQUIRED[@]}"; do
-            if ! grep -q "^$v=" "$GITHUB_ENV"; then
-              echo "[ERROR] Falta $v (no cargado del secret PUBLIC_ENV_VARS)" >&2
+            val="${!v}"
+            if [ -z "$val" ]; then
+              echo "[ERROR] Falta o vacío: $v" >&2
               MISSING=1
-            else
-              if grep -q "^$v=$" "$GITHUB_ENV"; then
-                echo "[ERROR] Valor vacío para $v (línea presente pero sin contenido)." >&2
-                MISSING=1
-              fi
             fi
           done
           if [ $MISSING -eq 1 ]; then
-            echo "Contenido actual de $GITHUB_ENV:" >&2
-            sed -n '1,120p' "$GITHUB_ENV" >&2 || true
-            echo "Abortando build: agrega las variables al secret PUBLIC_ENV_VARS (multiline)." >&2
+            echo "Abortando build: define cada variable como Secret (secrets.PUBLIC_* ) o Variable (vars.PUBLIC_*)." >&2
             exit 1
           fi
           echo "Validación OK: variables públicas presentes."
