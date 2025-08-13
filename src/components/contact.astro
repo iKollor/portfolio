@@ -4,9 +4,38 @@ interface Props {
     title?: string;
     paragraph?: string;
     location?: string;
-    form?: { name: string; email: string; message: string; submit: string; success: string; error: string };
+    form?: {
+        name: string;
+        email: string;
+        message: string;
+        submit: string;
+        success: string;
+        error: string;
+    };
 }
-const { heading = "Let's talk", title = "Contact", paragraph = "Have a question or a project in mind? Feel free to reach out.", location = "Location:", form = { name: "Name", email: "Email", message: "Message", submit: "Submit", success: "✅ Thank you for your message!", error: "There was a problem sending your message." } } = Astro.props as Props;
+const {
+    heading = "Let's talk",
+    title = "Contact",
+    paragraph = "Have a question or a project in mind? Feel free to reach out.",
+    location = "Location:",
+    form = {
+        name: "Name",
+        email: "Email",
+        message: "Message",
+        submit: "Submit",
+        success: "✅ Thank you for your message!",
+        error: "There was a problem sending your message.",
+    },
+} = Astro.props as Props;
+
+// Mensajes internos de validación (se podrían internacionalizar más adelante)
+const validation = {
+    nameEmpty: "Please provide your full name.",
+    emailEmpty: "Please provide your email address.",
+    emailInvalid: "Please provide a valid email address.",
+    messageEmpty: "Please enter your message.",
+    sending: "Sending...",
+};
 ---
 
 <section id="contact" class="w-full py-12 border-t border-[#ffffff10]">
@@ -23,48 +52,107 @@ const { heading = "Let's talk", title = "Contact", paragraph = "Have a question 
             </div>
 
             <div>
-                <form id="contact-form" action="https://formspree.io/f/mnnjznkj" method="POST" class="flex flex-col gap-4">
-                    <input type="text" name="from_name" placeholder={form.name} required class="px-4 py-2 bg-[#1414149c] text-[var(--white)] border border-[var(--white-icon-tr)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--sec)]" />
-                    <input type="email" name="reply_to" placeholder={form.email} required class="px-4 py-2 bg-[#1414149c] text-[var(--white)] border border-[var(--white-icon-tr)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--sec)]" />
-                    <textarea name="message" placeholder={form.message} rows="6" required class="px-4 py-2 bg-[#1414149c] text-[var(--white)] border border-[var(--white-icon-tr)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--sec)] resize-none"></textarea>
-                    <button type="submit" class="px-4 py-2 bg-[var(--white-icon-tr)] text-[var(--white)] rounded-lg opacity-60 transition-opacity border border-[var(--white-icon-tr)] hover:opacity-100 hover:bg-[var(--white-icon-tr)]">
+                <form id="contact-form" action="https://api.web3forms.com/submit" method="POST" class="flex flex-col gap-5 needs-validation" novalidate>
+                    <input type="hidden" name="access_key" value="2b6f7289-7f77-4512-b3e4-b256bf19ce2e" />
+                    <input type="checkbox" class="hidden" name="botcheck" tabindex="-1" autocomplete="off" />
+
+                    <div class="flex flex-col gap-1">
+                        <input type="text" name="name" placeholder={form.name} required class="px-4 py-3 bg-[#1414149c] text-[var(--white)] border border-[var(--white-icon-tr)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--sec)] placeholder:text-white/30" />
+                        <div class="empty-feedback text-red-400 text-xs">{validation.nameEmpty}</div>
+                    </div>
+
+                    <div class="flex flex-col gap-1">
+                        <input id="email_address" type="email" name="email" placeholder={form.email} required class="px-4 py-3 bg-[#1414149c] text-[var(--white)] border border-[var(--white-icon-tr)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--sec)] placeholder:text-white/30" />
+                        <div class="empty-feedback text-red-400 text-xs">{validation.emailEmpty}</div>
+                        <div class="invalid-feedback text-red-400 text-xs">{validation.emailInvalid}</div>
+                    </div>
+
+                    <div class="flex flex-col gap-1">
+                        <textarea name="message" placeholder={form.message} required class="h-36 resize-none px-4 py-3 bg-[#1414149c] text-[var(--white)] border border-[var(--white-icon-tr)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--sec)] placeholder:text-white/30"></textarea>
+                        <div class="empty-feedback text-red-400 text-xs">{validation.messageEmpty}</div>
+                    </div>
+
+                    <!-- Contenedor hCaptcha (Web3Forms autodetecta con data-captcha="true") -->
+                    <div class="h-captcha" data-captcha="true"></div>
+
+                    <button type="submit" data-submit-btn class="px-4 py-3 bg-[var(--white-icon-tr)] text-[var(--white)] rounded-md border border-[var(--white-icon-tr)] hover:bg-[var(--white-icon-tr)] hover:opacity-100 opacity-70 transition-colors font-medium tracking-wide disabled:opacity-40 disabled:cursor-not-allowed">
                         {form.submit}
                     </button>
+                    <div id="result" class="mt-1 text-sm"></div>
                 </form>
-                <div id="form-message" class="hidden justify-center items-center mt-4 text-[var(--white)] text-lg">
-                    {form.success}
-                </div>
             </div>
         </div>
     </div>
 </section>
+<style>
+    /* Feedback visibilidad controlada por clases */
+    .invalid-feedback,
+    .empty-feedback {
+        display: none;
+    }
+    .was-validated :placeholder-shown:invalid ~ .empty-feedback {
+        display: block;
+    }
+    .was-validated :not(:placeholder-shown):invalid ~ .invalid-feedback {
+        display: block;
+    }
+    .was-validated :invalid {
+        border-color: #dc3545;
+    }
+    .was-validated :invalid:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px #dc354580;
+    }
+</style>
 
-<script type="module" is:inline>
-    const form = document.getElementById("contact-form");
-    const formMessage = document.getElementById("form-message");
-
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const formData = new FormData(form);
-
-        try {
-            const response = await fetch(form.action, {
+<script is:inline>
+    document.addEventListener("DOMContentLoaded", () => {
+        const form = document.getElementById("contact-form");
+        if (!form) return;
+        const result = document.getElementById("result");
+        form.addEventListener("submit", (e) => {
+            e.preventDefault();
+            form.classList.add("was-validated");
+            if (!form.checkValidity()) {
+                const firstInvalid = form.querySelector(":invalid");
+                firstInvalid && firstInvalid.focus();
+                return;
+            }
+            const btn = form.querySelector("[data-submit-btn]");
+            const formData = new FormData(form);
+            // Web3Forms requiere el token hCaptcha que su script insertará como hidden input (h-captcha-response)
+            result.className = "mt-1 text-sm text-[var(--white-icon)]";
+            result.textContent = "Sending...";
+            btn && (btn.disabled = true);
+            fetch(form.action, {
                 method: "POST",
                 body: formData,
                 headers: { Accept: "application/json" },
-            });
-            if (response.ok) {
-                form.reset();
-                form.style.display = "none";
-                formMessage.classList.remove("hidden");
-            } else {
-                const data = await response.json();
-                console.error("Error response:", data);
-                alert(form.error);
-            }
-        } catch (error) {
-            console.error("Error:", error);
-            alert(form.error);
-        }
+            })
+                .then(async (response) => {
+                    const data = await response.json();
+                    if (response.ok) {
+                        result.className = "mt-1 text-sm text-green-500";
+                        result.textContent = data.message || "✅ Thank you for your message!";
+                    } else {
+                        result.className = "mt-1 text-sm text-red-500";
+                        result.textContent = data.message || "There was a problem sending your message.";
+                    }
+                })
+                .catch(() => {
+                    result.className = "mt-1 text-sm text-red-500";
+                    result.textContent = "There was a problem sending your message.";
+                })
+                .finally(() => {
+                    form.reset();
+                    setTimeout(() => {
+                        result.textContent = "";
+                    }, 5000);
+                    form.classList.remove("was-validated");
+                    btn && (btn.disabled = false);
+                });
+        });
     });
 </script>
+<!-- Script cliente de Web3Forms que inyecta y gestiona hCaptcha -->
+<script src="https://web3forms.com/client/script.js" async defer is:inline></script>
