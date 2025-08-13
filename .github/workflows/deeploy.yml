@@ -57,6 +57,11 @@ jobs:
             if ! grep -q "^$v=" "$GITHUB_ENV"; then
               echo "[ERROR] Falta $v (no cargado del secret PUBLIC_ENV_VARS)" >&2
               MISSING=1
+            else
+              if grep -q "^$v=$" "$GITHUB_ENV"; then
+                echo "[ERROR] Valor vacío para $v (línea presente pero sin contenido)." >&2
+                MISSING=1
+              fi
             fi
           done
           if [ $MISSING -eq 1 ]; then
