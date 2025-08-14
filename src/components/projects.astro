@@ -1,21 +1,27 @@
 ---
 import { Image } from "astro:assets";
+import ProjectGalleryButton from "../React/ProjectGalleryButton";
+import type { MediaItem } from "../React/GalleryModal";
 import labtec from "../../public/labtec.png";
 import ciddt from "../../public/ciddt.png";
 import ponteenmilugar from "../../public/ponteenmilugar.png";
 import fifteenn from "../../public/15n.png";
 import convida from "../../public/convida.png";
+import admin from "../../public/admin.jpg";
 
 interface Project {
     title: string;
     image: ImageMetadata;
     link: string;
-    descriptions: {
+    // base para video y poster dentro de src/projects (e.g., "CIDDT/CIDDT")
+    videoBase?: string;
+    // carpeta picked relativa dentro de src/projects (e.g., "CIDDT/picked")
+    pickedDir?: string;
+    media?: Array<{ kind: "image" | "gif"; src: ImageMetadata | string; alt?: string } | { kind: "video"; src?: string; base?: string; poster?: string; alt?: string; autoplay?: boolean; loop?: boolean; muted?: boolean; controls?: boolean }>;
+    descriptions?: {
         en: string;
         es: string;
     };
-    // (Opcional) campo para status futuro
-    status?: string;
 }
 
 interface Props {
@@ -23,27 +29,53 @@ interface Props {
     projectsTitle?: string;
     moreLabel?: string;
     lang?: "en" | "es";
-    // Mantener compatibilidad si alguien sigue pasando statuses u otros props
-    statuses?: Record<string, string>;
 }
 
 const { myWork = "My work", projectsTitle = "Projects", moreLabel = "More projects on", lang = "en" } = Astro.props as Props;
 
 // EDITA LIBREMENTE los textos en ambos idiomas directamente aquí:
+// Utilidades para cargar imágenes desde carpetas picked usando Vite glob
+const pickImages = import.meta.glob("/src/projects/**/picked/*.{png,jpg,jpeg,gif,webp,avif}", { eager: true, query: "?url", import: "default" }) as Record<string, string>;
+
+function getPickedImages(dir: string | undefined): MediaItem[] {
+    if (!dir) return [];
+    const prefix = `/src/projects/${dir}/`;
+    const items = Object.entries(pickImages)
+        .filter(([k]) => k.startsWith(prefix))
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, url]) => ({ kind: "image" as const, src: url, alt: k.split("/").at(-1) || "" }) as MediaItem);
+    return items;
+}
+
 const projects: Project[] = [
     {
         title: "Laboralistas (CIDDT)",
         image: ciddt,
         link: "https://github.com/iKollor/ciddt-web",
+        videoBase: "CIDDT/CIDDT",
+        pickedDir: "CIDDT/CIDDT_snapshots/picked",
         descriptions: {
             en: "Custom landing page for a labor lawyers' office for the Laboralistas project under the Center for Research and Defense of the Right to Work (CIDDT).",
             es: "Landing Page para despacho de abogados sindicalistas para el proyecto Laboralistas en el marco del Centro de Investigación y Defensa del Derecho al Trabajo (CIDDT).",
         },
     },
     {
+        title: "Admin Panel",
+        image: admin,
+        link: "https://github.com/iKollor/ciddt-web",
+        videoBase: "ADMIN/ADMIN",
+        pickedDir: "ADMIN/ADMIN_snapshots/picked",
+        descriptions: {
+            en: "Admin panel for the Laboralistas project, allowing management of social media integrations, pages, posts, reels, blog entries, and more.",
+            es: "Panel de administración para el proyecto Laboralistas, que permite la gestión de integraciones de redes sociales, páginas, publicaciones, reels, entradas de blog y más.",
+        },
+    },
+    {
         title: "Ponte en mi Lugar 2024",
         image: ponteenmilugar,
         link: "https://github.com/iKollor/Ponte-en-mi-Lugar-2024",
+        videoBase: "PONTEENMILUGAR/PONTEENMILUGAR",
+        pickedDir: "PONTEENMILUGAR/PONTEENMILUGAR_snapshots/picked",
         descriptions: {
             en: "Landing Page for the annual solidarity race 'Ponte en mi Lugar' developed by the Permanent Committee on Human Rights (CDH).",
             es: "Landing Page para la carrera solidaria anual 'Ponte en mi Lugar' desarrollada por el Comité Permanente de los Derechos Humanos (CDH)",
@@ -53,6 +85,8 @@ const projects: Project[] = [
         title: "Convida",
         image: convida,
         link: "https://github.com/iKollor/convida-web",
+        videoBase: "CONVIDA/CONVIDA",
+        pickedDir: "CONVIDA/CONVIDA_snapshots/picked",
         descriptions: {
             en: "Informative website developed for the Convida project, aimed at the economic reintegration of people in migratory situations in Ecuador, Guayaquil.",
             es: "Web informativa desarrollada para el proyecto Convida, con el objetivo de la reinserción económica para las personas en situación migratoria en Ecuador, Guayaquil",
@@ -62,6 +96,8 @@ const projects: Project[] = [
         title: "Web 15N (COSG)",
         image: fifteenn,
         link: "https://github.com/iKollor/pagina-cosg-15n",
+        videoBase: "15N/15N",
+        pickedDir: "15N/15N_snapshots/picked",
         descriptions: {
             en: "Web page for the commemoration campaign for the centenary of November 15, 1922 implemented by the National Coordinator for the Centenary of 15N and the Coordinator of Social Organizations of Guayas (COSG).",
             es: "Web de lanzamiento para la campaña conmemorativa por el centenario del 15 de Noviembre de 1922 implementada por la Coordinadora Nacional por el Centenario del 15N y la Coordinadora de Organizaciones Sociales del Guayas (COSG).",
@@ -86,28 +122,34 @@ const projects: Project[] = [
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             {
-                projects.map((project) => (
-                    <div class="group">
-                        <a href={project.link} target="_blank" rel="noopener noreferrer" class="block">
-                            <div class="rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 mb-4">
-                                <Image src={project.image} alt={project.title} class="w-full h-48 md:h-72 object-cover group-hover:scale-105 transition-transform duration-300" />
-                            </div>
-                            <div class="flex items-center px-3">
-                                <div class="flex-grow">
-                                    <h4 class="text-2xl font-semibold">{project.title}</h4>
-                                    <span class="py-1 text-sm text-[var(--white-icon)]">{project.descriptions[lang]}</span>
+                projects.map((project) => {
+                    // Construir media: video primero (si hay videoBase) usando `base` para fuentes responsivas, luego imágenes picked
+                    const media: MediaItem[] = [...(project.videoBase ? [{ kind: "video" as const, base: project.videoBase }] : []), ...getPickedImages(project.pickedDir)];
+                    const hasMedia = media.length > 0;
+                    return (
+                        <div class="group">
+                            <div class="block">
+                                <div class="rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 mb-4">
+                                    <Image src={project.image} alt={project.title} class="w-full h-48 md:h-72 object-cover group-hover:scale-105 transition-transform duration-300" />
                                 </div>
-                                <div class="flex gap-2 ml-auto">
-                                    <a target="_blank" href={project.link} aria-label="GitHub" class="size-14 flex justify-center items-center text-[var(--white-icon)] hover:text-white transition duration-300 ease-in-out border border-1 border-[var(--white-icon-tr)] p-3 rounded-xl bg-[#1414149c] hover:bg-[var(--white-icon-tr)]">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-7">
-                                            <path d="M24 12L18.3431 17.6569L16.9289 16.2426L21.1716 12L16.9289 7.75736L18.3431 6.34315L24 12ZM2.82843 12L7.07107 16.2426L5.65685 17.6569L0 12L5.65685 6.34315L7.07107 7.75736L2.82843 12ZM9.78845 21H7.66009L14.2116 3H16.3399L9.78845 21Z" />
-                                        </svg>
-                                    </a>
+                                <div class="flex items-center px-3">
+                                    <div class="flex-grow mr-2">
+                                        <h4 class="text-2xl font-semibold">{project.title}</h4>
+                                        <span class="py-1 text-sm text-[var(--white-icon)]">{project.descriptions[lang]}</span>
+                                    </div>
+                                    <div class="flex gap-2 ml-auto">
+                                        {hasMedia && <ProjectGalleryButton client:load media={media} />}
+                                        <a target="_blank" href={project.link} aria-label="GitHub" class="size-14 flex justify-center items-center text-[var(--white-icon)] hover:text-white transition duration-300 ease-in-out border border-1 border-[var(--white-icon-tr)] p-3 rounded-xl bg-[#1414149c] hover:bg-[var(--white-icon-tr)]">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-7">
+                                                <path d="M24 12L18.3431 17.6569L16.9289 16.2426L21.1716 12L16.9289 7.75736L18.3431 6.34315L24 12ZM2.82843 12L7.07107 16.2426L5.65685 17.6569L0 12L5.65685 6.34315L7.07107 7.75736L2.82843 12ZM9.78845 21H7.66009L14.2116 3H16.3399L9.78845 21Z" />
+                                            </svg>
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
-                        </a>
-                    </div>
-                ))
+                        </div>
+                    );
+                })
             }
         </div>
         <a target="_blank" href="https://github.com/iKollor?tab=repositories" aria-label="GitHub" class="w-full flex items-center justify-center gap-2 mt-9 text-[var(--white-icon)] hover:text-white transition duration-300 ease-in-out border border-[var(--white-icon-tr)] p-3 rounded-full bg-[#1414149c] hover:bg-[var(--white-icon-tr)] hover:scale-105">

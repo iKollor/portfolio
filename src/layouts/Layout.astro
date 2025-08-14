@@ -118,4 +118,15 @@ const t = getDict(lang as "en" | "es");
         scrollbar-width: thin;
         scrollbar-color: var(--line) var(--container);
     }
+
+    /* Utility: hide scrollbars (used in modal slider track) */
+    .no-scrollbar {
+        -ms-overflow-style: none; /* IE and Edge */
+        scrollbar-width: none; /* Firefox */
+    }
+    .no-scrollbar::-webkit-scrollbar {
+        display: none; /* Chrome, Safari */
+        width: 0;
+        height: 0;
+    }
 </style>

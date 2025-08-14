@@ -1,0 +1,82 @@
+---
+import { LARGE_BP_DEFAULT, resolveVideoAssets } from "../lib/media";
+
+interface Props {
+    base: string; // e.g., "CIDDT/CIDDT" => maps to src/projects/CIDDT/CIDDT_*.ext
+    poster?: string;
+    largeBreakpoint?: string; // media query for 1080p
+    controls?: boolean;
+    autoplay?: boolean;
+    loop?: boolean;
+    preload?: "none" | "metadata" | "auto";
+    className?: string;
+    style?: string;
+    width?: number;
+    height?: number;
+    ariaLabel?: string;
+}
+
+const { base, poster, largeBreakpoint = LARGE_BP_DEFAULT, controls = true, autoplay = false, loop = false, preload = "metadata", className = "", style = "", width = 1920, height = 1080, ariaLabel } = Astro.props as Props;
+
+if (!base) {
+    throw new Error("<VideoResponsive> requiere la prop 'base'. Ej: 'CIDDT/CIDDT'");
+}
+
+if (import.meta.env.DEV && controls === false && !ariaLabel) {
+    throw new Error("Accesibilidad: cuando controls=false debes proporcionar ariaLabel describiendo el video.");
+}
+
+// Resolver URLs estáticas desde src/projects usando helper compartido
+const { av1_720, av1_1080, mp4_720, mp4_1080, poster: posterAuto } = resolveVideoAssets(base);
+const posterResolved = poster ?? posterAuto;
+
+// Orden: AV1 primero, luego MP4. 1080p con media query; 720p por defecto.
+const videoAttrs = {
+    preload,
+    playsinline: true,
+    controls,
+    autoplay,
+    loop,
+    muted: autoplay ? true : undefined,
+    poster: posterResolved,
+    width,
+    height,
+    "aria-label": controls ? undefined : ariaLabel,
+    class: className,
+    style,
+};
+---
+
+<figure>
+    <video {...videoAttrs}>
+        {av1_1080 && <source src={av1_1080} type="video/webm" media={largeBreakpoint} />}
+        {av1_720 && <source src={av1_720} type="video/webm" />}
+        {mp4_1080 && <source src={mp4_1080} type="video/mp4" media={largeBreakpoint} />}
+        {mp4_720 && <source src={mp4_720} type="video/mp4" />}
+        Tu navegador no soporta la reproducción de video.
+    </video>
+    <slot name="caption" />
+    <slot />
+    <!-- Slots: opcionalmente puedes usar slot="caption" para figcaption -->
+</figure>
+
+<style>
+    figure {
+        margin: 0;
+    }
+    video {
+        display: block;
+        width: 100%;
+        height: auto;
+    }
+    figcaption {
+        color: var(--white-icon, #ccc);
+        font-size: 0.9rem;
+        margin-top: 0.5rem;
+    }
+    @media (min-width: 1024px) {
+        figcaption {
+            font-size: 1rem;
+        }
+    }
+</style>
