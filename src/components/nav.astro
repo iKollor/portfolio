@@ -153,8 +153,8 @@ import LanguageSwitcher from "./LanguageSwitcher.astro";
     });
 
     document.addEventListener("DOMContentLoaded", () => {
-        const sections = Array.from(document.querySelectorAll("section[id]"));
-        const navLinks = Array.from(document.querySelectorAll("nav a[href^='#']"));
+    const sections = Array.from(document.querySelectorAll("section[id]")) as HTMLElement[];
+    const navLinks = Array.from(document.querySelectorAll("nav a[href^='#']")) as HTMLAnchorElement[];
         const observerOptions = { threshold: [0.35, 0.55, 0.75] };
 
         function setActive(id: string | null) {
@@ -165,19 +165,19 @@ import LanguageSwitcher from "./LanguageSwitcher.astro";
         }
 
         const observerCallback = (entries: IntersectionObserverEntry[]) => {
-            // Elegir la sección con mayor intersección visible
-            let top: { id: string; ratio: number } | null = null;
+            // Elegir la sección con mayor intersección visible sin ambigüedades de tipos
+            let topId: string | null = null;
+            let topRatio = -1;
             entries.forEach((entry) => {
                 if (entry.isIntersecting) {
                     const id = entry.target.getAttribute("id");
-                    if (id) {
-                        if (!top || entry.intersectionRatio > top.ratio) {
-                            top = { id, ratio: entry.intersectionRatio };
-                        }
+                    if (id && entry.intersectionRatio > topRatio) {
+                        topId = id;
+                        topRatio = entry.intersectionRatio;
                     }
                 }
             });
-            if (top) setActive(top.id);
+            if (topId) setActive(topId);
         };
 
         const observer = new IntersectionObserver(observerCallback, observerOptions);

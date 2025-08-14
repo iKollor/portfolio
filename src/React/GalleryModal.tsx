@@ -50,7 +50,6 @@ function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
 }
 
-const ANIM_IN = 300;
 const ANIM_OUT = 300;
 const PANEL_BASE = "relative z-10 w-[95vw] max-w-5xl max-h-[90vh] bg-[#0c0c0c] border border-white/10 rounded-2xl shadow-2xl overflow-hidden transform transition-all will-change-transform will-change-opacity";
 const OVERLAY_BASE = "fixed inset-0 z-[9999] flex items-center justify-center transition-opacity";
@@ -330,7 +329,7 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({ open, onClose, media
                   el.scrollLeft = startScrollRef.current - dx;
                   e.preventDefault();
                 }}
-                onPointerUp={(e) => {
+                onPointerUp={() => {
                   if (!isDraggingRef.current) return;
                   isDraggingRef.current = false;
                   finalizeDrag();

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import React, { useState } from "react";
 
-const CategoryIcons = {
+const CategoryIcons: Record<string, React.ReactElement> = {
   "Web Development": (
     <svg
       xmlns="http://www.w3.org/2000/svg"

@@ -1,5 +1,7 @@
 {
   "compilerOptions": {
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
     "module": "ES2020",
     "allowImportingTsExtensions": true,
     "noEmit": true,
